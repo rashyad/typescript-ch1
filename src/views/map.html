@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <title>Map</title>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""/>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+        <style>
+            #map { height: 800px; }
+        </style>
+    </head>
+    <body>
+        <h1>Power Plants in United States of America</h1>
+        <br/>
+        <div>
+            <label 
+                id="plantDataYearLabel">
+                Select Plant's Data Year
+            </label>
+            <select id="selectYear">
+                <option value="2022" selected >2022</option>
+                <option value="2021">2021</option>
+                <option value="2020">2020</option>
+                <option value="2019">2019</option>
+                <option value="2018">2018</option>
+            </select>
+            <br/>
+            <label
+                id="plantNumberLabel"
+                >
+                Select Number of Plants
+            </label>
+            <select id="selectNumberOfPlants">
+                <option value="15">15</option>
+                <option value="50">50</option>
+                <option value="150">150</option>
+                <option value="250">250</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+                <option value="1500">1500</option>
+                <option value="2500">2500</option>
+                <option value="5000">5000</option>
+                <option value="5000">6000</option>
+            </select>
+            <br/>
+            <label>
+                Filter by States
+            </label>
+            <select id="filterByStates">
+            </select>
+            <br/>
+            <br/>
+            <button
+                type="button"
+                id="applyChanges"
+            >
+                Apply Changes
+            </button>
+            <span id="loadingData" style="display: none;">Loading Data...</span>
+        </div>
+        <br/>
+
+        <div id="map"></div>
+    </body>
+    <script>
+        $(document).ready(function(){
+
+            function buildPopupText(d){
+                return `State Abb: ${d.stateAbbreviation} 
+                <br/> Plant name: ${d.plantName} 
+                <br/> Annual Net (Mwh): ${d.annualNetGeneration}
+                <br/> Annual Net (Mwh): ${d.annualPercentage}%
+                `
+            }
+
+            var map = L.map('map').setView([39.381, -97.922], 13);
+
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            $.get("/state-list",
+                (res) => {
+                    if(res.data.data?.length){
+                        // build the states filter
+                        $('#filterByStates')
+                            .append($('<option>').val("None").text("None"));
+                        for(const d of res.data.data){
+                            $('#filterByStates')
+                            .append($('<option>').val(d.stateAbbreviation).text(d.stateAbbreviation));
+                        }
+                       
+                    }
+            });
+
+
+            $.get("/plants",
+                {
+                    dataYear: "2022",
+                    plantsNumber: 15,
+                },
+                (res) => {
+                    if(res.data.data?.length){
+                        // draw marker
+                        const data = res.data.data
+                        const bounds = L.latLngBounds() 
+                        for(const d of  data){
+                            if(d.coordinates){
+                                const markerCoord = [d.coordinates.lat, d.coordinates.lon]
+                                L.marker(markerCoord).addTo(map)
+                                .bindPopup(buildPopupText(d))
+
+                                bounds.extend(markerCoord)
+                            }
+                        }
+
+                        map.fitBounds(bounds)
+                    }
+            });
+        
+
+            $("#applyChanges").on("click", () => {
+
+                $("#loadingData").show()
+                const dataYear = $("#selectYear").val();
+                let numbers = 0
+                let url = "/plants"
+                let params = {}
+                let filter = $("#filterByStates").val()
+
+                numbers = $("#selectNumberOfPlants").val();
+                url = "/plants"
+                params = {
+                    year: dataYear,
+                    plantsNumber: numbers,
+                    filter
+                }
+
+                map.eachLayer((layer) => {
+                    if (layer instanceof L.Marker) {
+                        layer.remove();
+                    }
+                });
+               
+                $.get(url,
+                    params,
+                    (res) => {
+                        $("#loadingData").hide()
+                        if(res.data.data?.length){
+                            // draw marker
+                            const data = res.data.data
+                            const bounds = L.latLngBounds() 
+                            for(const d of  data){
+                                if(d.coordinates){
+                                    const markerCoord = [d.coordinates.lat, d.coordinates.lon]
+                                    L.marker(markerCoord).addTo(map)
+                                    .bindPopup(buildPopupText(d))
+
+                                    bounds.extend(markerCoord)
+                                }
+                            }
+
+                            map.fitBounds(bounds)
+                        }
+                });
+
+            })
+        });
+    </script>
+</html>
