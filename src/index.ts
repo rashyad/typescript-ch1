@@ -1,7 +1,7 @@
 // src/index.js
 import express, { Express, Request, Response } from "express";
 import { YearNumber } from "./reader";
-import { getStateList, getTopPlants, getTopStates } from "./handler";
+import { getStateList, getTopPlants } from "./handler";
 import path from "path"
 
 
@@ -24,7 +24,7 @@ app.get("/plants", async (req: Request, res: Response) => {
     "2021",
     "2020",
     "2019",
-    "2019"
+    "2018"
   ]
 
   let dataYear = "2022"
